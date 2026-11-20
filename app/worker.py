@@ -26,6 +26,9 @@ from app.agent.tools import (
     execute_book_test,
     execute_handoff_to_human
 )
+from prometheus_client import (
+    start_http_server
+)
 from app.metrics import (
     WORKER_JOBS_TOTAL,
     WORKER_PROCESSING_DURATION_SECONDS
@@ -186,6 +189,12 @@ async def process_job(job_data: str):
 
 async def run_worker():
     """Main worker event loop."""
+    logger.info("Starting Worker Prometheus metrics server on port 8002...")
+    try:
+        start_http_server(8002)
+    except Exception as e:
+        logger.warning(f"Metrics server already started or port 8002 busy: {e}")
+
     logger.info("WhatsApp Agent Worker started, waiting for jobs in Redis...")
     await redis_client.get_client()
     await db.init_schema()

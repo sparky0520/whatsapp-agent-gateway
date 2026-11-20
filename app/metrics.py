@@ -264,31 +264,3 @@ async def get_cluster_metrics_summary() -> dict:
     return summary
 
 
-async def sync_cluster_metrics():
-    """
-    Sync PostgreSQL and Redis cluster metrics into Prometheus in-memory registry,
-    ensuring /metrics exposes cluster-wide stats to Prometheus scraper.
-    """
-    try:
-        summary = await get_cluster_metrics_summary()
-
-        BOOKINGS_TOTAL.labels(status="confirmed")._value.set(summary["bookings"]["confirmed"])
-        BOOKINGS_TOTAL.labels(status="double_booking_prevented")._value.set(summary["bookings"]["double_booking_prevented"])
-        BOOKINGS_TOTAL.labels(status="failed")._value.set(summary["bookings"]["failed"])
-
-        WORKER_JOBS_TOTAL.labels(status="success")._value.set(summary["worker"]["success"])
-        WORKER_JOBS_TOTAL.labels(status="error")._value.set(summary["worker"]["error"])
-
-        LAB_API_REQUESTS_TOTAL.labels(endpoint="lab", status="success")._value.set(summary["lab_api"]["requests_success"])
-        LAB_API_REQUESTS_TOTAL.labels(endpoint="lab", status="failure")._value.set(summary["lab_api"]["requests_failure"])
-        LAB_API_RETRIES_TOTAL.labels(endpoint="lab")._value.set(summary["lab_api"]["retries_total"])
-
-        LLM_TOKENS_TOTAL.labels(type="prompt", model="cluster")._value.set(summary["llm"]["prompt_tokens"])
-        LLM_TOKENS_TOTAL.labels(type="completion", model="cluster")._value.set(summary["llm"]["completion_tokens"])
-        LLM_COST_TOTAL.labels(currency="USD")._value.set(summary["llm"]["cost_usd"])
-        LLM_COST_TOTAL.labels(currency="INR")._value.set(summary["llm"]["cost_inr"])
-
-        HUMAN_HANDOFFS_TOTAL.labels(priority="ALL")._value.set(summary["human_handoffs"]["total"])
-    except Exception:
-        pass
-

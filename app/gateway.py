@@ -26,8 +26,7 @@ from app.metrics import (
     WEBHOOK_DURATION_SECONDS,
     get_prometheus_metrics,
     get_metrics_summary,
-    get_cluster_metrics_summary,
-    sync_cluster_metrics
+    get_cluster_metrics_summary
 )
 
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO))
@@ -77,7 +76,6 @@ async def health():
 @app.get("/metrics")
 async def metrics():
     """Expose metrics in Prometheus text exposition format."""
-    await sync_cluster_metrics()
     data, content_type = get_prometheus_metrics()
     return Response(content=data, media_type=content_type)
 

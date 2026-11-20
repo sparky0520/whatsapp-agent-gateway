@@ -92,8 +92,19 @@ This spins up 6 production-ready containers on an isolated bridge network:
 - `heydoc-redis` (Redis 7 broker & cache on `:6379`)
 - `heydoc-mock-lab` (Flaky Lab API on `:8001`)
 - `heydoc-gateway` (FastAPI Ingress & Metrics on `:8000`)
-- `heydoc-worker` (Async LLM Tool Calling Worker)
+- `heydoc-worker` (Async LLM Tool Calling Worker with metrics on `:8002`)
 - `heydoc-prometheus` (Prometheus Observability Engine on `:9090`)
+
+### 🌐 Service Port Mapping Reference
+
+| Port | Service | What runs on it |
+|---|---|---|
+| `:8000` | **Gateway** | FastAPI webhook ingress for Meta WhatsApp messages (`app.gateway`) |
+| `:8001` | **Mock Lab API** | Diagnostic lab simulator with 20% transient faults and latency (`app.mock_lab`) |
+| `:8002` | **Worker Metrics** | Standalone Prometheus metrics exporter for asynchronous worker (`app.worker`) |
+| `:5432` | **PostgreSQL** | Relational state store (conversations, messages, bookings, slots) |
+| `:6379` | **Redis** | Broker queue, deduplication cache, and distributed slot mutex |
+| `:9090` | **Prometheus** | Observability engine and visual metrics dashboard |
 
 ### 3. Verify Health & Metrics
 ```bash
@@ -106,8 +117,11 @@ curl http://localhost:8001/health
 # View live JSON metrics summary (latencies, tokens, costs, handoffs)
 curl http://localhost:8000/metrics/summary
 
-# View Prometheus text exposition
+# View Gateway in-memory Prometheus metrics
 curl http://localhost:8000/metrics
+
+# View Worker in-memory Prometheus metrics
+curl http://localhost:8002/metrics
 ```
 
 ---
