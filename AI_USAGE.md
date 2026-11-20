@@ -22,7 +22,7 @@ At scale (15M+ interactions/month at HeyDoc AI), building with AI requires more 
 | Tool / Agent | Role in Workflow | Key Output / Artifact |
 | :--- | :--- | :--- |
 | **Google Antigravity (Gemini 3.8 Flash)** | Autonomous engineering agent coordinator; terminal execution, parallel module generation, invariant verification harness, system architecture | Core gateway & worker implementation, Docker orchestration, verification suites |
-| **DeepSeek (`deepseek-chat` / DeepSeek-V3)** | Runtime conversational agent for patient dialogue and tool calling | Live tool-calling sessions (`check_slots`, `book_test`, `handoff_to_human`) |
+| **DeepSeek (`deepseek-chat` / DeepSeek-V4-flash)** | Runtime conversational agent for patient dialogue and tool calling | Live tool-calling sessions (`check_slots`, `book_test`, `handoff_to_human`) |
 | **Deterministic Mock LLM Engine** | High-throughput offline testing harness (0 token cost) | 1,000-message load test without consuming production API credits |
 
 ---

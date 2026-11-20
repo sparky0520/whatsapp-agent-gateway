@@ -51,7 +51,7 @@ class MockLLMClient:
     """
     Deterministic offline test double for CI/CD, local testing, and zero-spend load simulation.
     
-    NOTE: In production (LLM_PROVIDER="deepseek" or "openai"), routing and tool selection
+    NOTE: In production (e.g. LLM_PROVIDER="deepseek" or "live"), routing and tool selection
     are 100% prompt-driven by the LLM using the few-shot system prompt in `app/agent/prompt.py`.
     This mock class provides a lightweight deterministic simulation without external API calls or token spend.
     """
@@ -159,22 +159,22 @@ class MockLLMClient:
         )
 
 
-class OpenAILLMClient:
-    """OpenAI-compatible client supporting DeepSeek and OpenAI."""
-    def __init__(self, provider: str = "deepseek"):
+class OpenAICompatibleLLMClient:
+    """Generic OpenAI-compatible client supporting DeepSeek, OpenRouter, Groq, Ollama, vLLM, etc."""
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        model_name: Optional[str] = None
+    ):
         from openai import AsyncOpenAI
-        if provider == "deepseek" or (settings.LLM_PROVIDER == "deepseek" or settings.DEEPSEEK_API_KEY):
-            self.client = AsyncOpenAI(
-                api_key=settings.DEEPSEEK_API_KEY or settings.OPENAI_API_KEY,
-                base_url=settings.DEEPSEEK_BASE_URL
-            )
-            self.model_name = settings.DEEPSEEK_MODEL_NAME
-        else:
-            self.client = AsyncOpenAI(
-                api_key=settings.OPENAI_API_KEY,
-                base_url=settings.OPENAI_BASE_URL
-            )
-            self.model_name = settings.OPENAI_MODEL_NAME
+        self.api_key = api_key or settings.LLM_API_KEY
+        self.base_url = base_url or settings.LLM_BASE_URL
+        self.model_name = model_name or settings.LLM_MODEL_NAME
+        self.client = AsyncOpenAI(
+            api_key=self.api_key or "mock-key",
+            base_url=self.base_url
+        )
 
     async def chat(
         self,
@@ -228,14 +228,20 @@ class OpenAILLMClient:
         )
 
 
+OpenAILLMClient = OpenAICompatibleLLMClient
+
+
 def get_llm_client():
-    """Return configured LLM provider (DeepSeek / OpenAI) or fallback to mock."""
-    if (settings.LLM_PROVIDER == "deepseek" and (settings.DEEPSEEK_API_KEY or settings.OPENAI_API_KEY)) or \
-       (settings.LLM_PROVIDER == "openai" and settings.OPENAI_API_KEY):
+    """Return configured OpenAI-compatible LLM client or fallback to mock."""
+    provider = (settings.LLM_PROVIDER or "mock").lower()
+    has_api_key = bool(settings.LLM_API_KEY)
+    is_local = any(h in settings.LLM_BASE_URL for h in ("localhost", "127.0.0.1"))
+
+    if provider != "mock" and (has_api_key or is_local):
         try:
-            return OpenAILLMClient(provider=settings.LLM_PROVIDER)
+            return OpenAICompatibleLLMClient()
         except Exception as e:
-            logger.warning(f"Failed to initialize {settings.LLM_PROVIDER} client ({e}). Falling back to MockLLMClient.")
+            logger.warning(f"Failed to initialize OpenAI-compatible LLM client ({e}). Falling back to MockLLMClient.")
             return MockLLMClient()
     return MockLLMClient()
 
