@@ -15,11 +15,11 @@ from app.agent.llm import calculate_cost
 
 @pytest.mark.asyncio
 async def test_calculate_cost_accuracy():
-    # 1,000,000 prompt tokens @ $0.150 = $0.150
-    # 1,000,000 completion tokens @ $0.600 = $0.600
+    # DeepSeek baseline: 1,000,000 prompt tokens @ $0.140 = $0.140
+    # 1,000,000 completion tokens @ $0.280 = $0.280
     usd, inr = calculate_cost(1_000_000, 1_000_000)
-    assert usd == 0.75
-    assert inr == round(0.75 * 85.0, 4)
+    assert usd == 0.42
+    assert inr == round(0.42 * 85.0, 4)
 
 
 @pytest.mark.asyncio

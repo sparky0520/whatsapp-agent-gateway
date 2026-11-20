@@ -175,11 +175,21 @@ class MockLLMClient:
 
 
 class OpenAILLMClient:
-    """Live OpenAI Client for production tool calling."""
-    def __init__(self):
+    """OpenAI-compatible client supporting DeepSeek and OpenAI."""
+    def __init__(self, provider: str = "deepseek"):
         from openai import AsyncOpenAI
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model_name = settings.OPENAI_MODEL_NAME
+        if provider == "deepseek" or (settings.LLM_PROVIDER == "deepseek" or settings.DEEPSEEK_API_KEY):
+            self.client = AsyncOpenAI(
+                api_key=settings.DEEPSEEK_API_KEY or settings.OPENAI_API_KEY,
+                base_url=settings.DEEPSEEK_BASE_URL
+            )
+            self.model_name = settings.DEEPSEEK_MODEL_NAME
+        else:
+            self.client = AsyncOpenAI(
+                api_key=settings.OPENAI_API_KEY,
+                base_url=settings.OPENAI_BASE_URL
+            )
+            self.model_name = settings.OPENAI_MODEL_NAME
 
     async def chat(
         self,
@@ -234,12 +244,13 @@ class OpenAILLMClient:
 
 
 def get_llm_client():
-    """Return configured LLM provider or fallback to mock."""
-    if settings.LLM_PROVIDER == "openai" and settings.OPENAI_API_KEY:
+    """Return configured LLM provider (DeepSeek / OpenAI) or fallback to mock."""
+    if (settings.LLM_PROVIDER == "deepseek" and (settings.DEEPSEEK_API_KEY or settings.OPENAI_API_KEY)) or \
+       (settings.LLM_PROVIDER == "openai" and settings.OPENAI_API_KEY):
         try:
-            return OpenAILLMClient()
+            return OpenAILLMClient(provider=settings.LLM_PROVIDER)
         except Exception as e:
-            logger.warning(f"Failed to initialize OpenAI client ({e}). Falling back to MockLLMClient.")
+            logger.warning(f"Failed to initialize {settings.LLM_PROVIDER} client ({e}). Falling back to MockLLMClient.")
             return MockLLMClient()
     return MockLLMClient()
 

@@ -55,14 +55,19 @@ class Settings(BaseSettings):
     RETRY_BASE_BACKOFF: float = 0.3  # seconds
     RETRY_MAX_BACKOFF: float = 2.0   # seconds
 
-    # LLM Settings
-    LLM_PROVIDER: Literal["mock", "openai", "gemini"] = "mock"
+    # LLM Settings (OpenAI-Compatible: DeepSeek / OpenAI)
+    LLM_PROVIDER: Literal["mock", "deepseek", "openai"] = "mock"
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
+    DEEPSEEK_MODEL_NAME: str = "deepseek-chat"
+
     OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
     OPENAI_MODEL_NAME: str = "gpt-4o-mini"
     
-    # Token Pricing (e.g. GPT-4o-mini: $0.150 / 1M in, $0.600 / 1M out)
-    COST_PER_1M_PROMPT_TOKENS_USD: float = 0.150
-    COST_PER_1M_COMPLETION_TOKENS_USD: float = 0.600
+    # Token Pricing (DeepSeek baseline: $0.140 / 1M in, $0.280 / 1M out)
+    COST_PER_1M_PROMPT_TOKENS_USD: float = 0.140
+    COST_PER_1M_COMPLETION_TOKENS_USD: float = 0.280
     USD_TO_INR_RATE: float = 85.0
 
 
