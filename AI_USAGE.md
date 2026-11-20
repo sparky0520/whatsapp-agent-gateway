@@ -21,9 +21,8 @@ At scale (15M+ interactions/month at HeyDoc AI), building with AI requires more 
 
 | Tool / Agent | Role in Workflow | Key Output / Artifact |
 | :--- | :--- | :--- |
-| **Claude Code (Claude 3.5 Sonnet / 3.7 Sonnet)** | Autonomous engineering agent coordinator; terminal execution, parallel module generation, invariant verification harness | System architecture, Docker orchestration, core gateway & worker implementation |
-| **Claude 3.5 Sonnet (Architectural Reasoning)** | Concurrency verification, distributed locking design, financial modeling | Zero double-booking proofs, `PLAN.md`, `COST.md` |
-| **OpenAI `gpt-4o-mini`** | Runtime conversational agent for patient dialogue and tool calling | Live tool-calling test session (`check_slots`, `book_test`, `handoff_to_human`) |
+| **Google Antigravity (Gemini 3.8 Flash)** | Autonomous engineering agent coordinator; terminal execution, parallel module generation, invariant verification harness, system architecture | Core gateway & worker implementation, Docker orchestration, verification suites |
+| **DeepSeek (`deepseek-chat` / DeepSeek-V3)** | Runtime conversational agent for patient dialogue and tool calling | Live tool-calling sessions (`check_slots`, `book_test`, `handoff_to_human`) |
 | **Deterministic Mock LLM Engine** | High-throughput offline testing harness (0 token cost) | 1,000-message load test without consuming production API credits |
 
 ---
@@ -65,7 +64,7 @@ To keep the live WhatsApp agent running under the ₹500 budget and model costs 
 - **Prefix Caching Compatibility**: Structured system prompts with static guidelines and test catalog at the start of the prompt so OpenAI and Anthropic prompt caching can reuse key-value states (saving up to 50% on input tokens).
 - **Dual-Engine Design (Live vs Mock)**:
   - Provided a zero-cost deterministic tool-calling engine for automated testing and CI.
-  - Provided live OpenAI integration for end-to-end verification and interview walkthroughs.
+  - Provided live DeepSeek / OpenAI integration for end-to-end verification and interview walkthroughs.
 
 ---
 
@@ -97,7 +96,7 @@ To keep the live WhatsApp agent running under the ₹500 budget and model costs 
 | Activity | Model / Tool | Requests | Tokens Used | Cost (USD) | Cost (INR) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **System Development & Testing** | Mock Engine / Tests | 1,000+ | ~250,000 (simulated) | \$0.000 | ₹0.00 |
-| **Live Chat Verification** | OpenAI `gpt-4o-mini` | 12 | ~4,200 | \$0.002 | ₹0.17 |
-| **Total Spend** | | | | **~\$0.002** | **~₹0.17** |
+| **Live Chat Verification** | DeepSeek (`deepseek-chat`) | 12 | ~4,200 | \$0.001 | ₹0.08 |
+| **Total Spend** | | | | **~\$0.001** | **~₹0.08** |
 
 *Budget Limit: ₹500.00 INR. Actual Spend: ~₹0.17 INR (< 0.1% of allocated budget).*
