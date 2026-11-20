@@ -244,12 +244,33 @@ Waiting for worker queue to finish processing background tasks...
 
 The assignment rules stipulate keeping total spend under ₹500:
 - **Allocated Budget**: ₹500.00 INR
-- **Actual LLM Spend Incurred**: **~₹0.17 INR ($0.002 USD)** (~4,200 tokens across live OpenAI verification turns).
+- **Actual LLM Spend Incurred**: **~₹0.17 INR ($0.002 USD)** (~4,200 tokens across live LLM verification turns).
 - **Load Testing**: Handled via the built-in deterministic Mock LLM Engine, enabling high-volume 1,000-message stress tests at **₹0.00 token burn**.
 
 ---
 
-## 💬 Interactive Chat Simulator
+## 🤖 Real LLM Verification (`scripts/test_live_llm.py`)
+
+Test a single patient message with an actual OpenAI-compatible LLM (e.g. DeepSeek-V3, OpenRouter, Groq, or OpenAI) to inspect live prompt routing, tool calling, and execution:
+
+```bash
+# Live single-turn tool-calling test with DeepSeek
+python scripts/test_live_llm.py \
+  --api-key "$DEEPSEEK_API_KEY" \
+  --base-url "https://api.deepseek.com" \
+  --model "deepseek-chat" \
+  --message "Can you check what slots are available for a CBC test tomorrow?"
+```
+
+**What it verifies:**
+1. Formats history and loads system prompt from `app/agent/prompt.py`.
+2. Emits structured tool calls (`check_slots`, `book_test`, or `handoff_to_human`).
+3. Executes the tool against the upstream lab API and returns live slots/booking results.
+4. Computes exact prompt tokens, completion tokens, and financial cost in INR.
+
+---
+
+## 💬 Interactive Chat Simulator (`scripts/simulate_chat.py`)
 
 Test real dialogue turns, tool execution, and booking confirmations in your terminal:
 
