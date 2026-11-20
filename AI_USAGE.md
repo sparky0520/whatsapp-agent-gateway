@@ -21,8 +21,8 @@ At scale (15M+ interactions/month at HeyDoc AI), building with AI requires more 
 
 | Tool / Agent | Role in Workflow | Key Output / Artifact |
 | :--- | :--- | :--- |
-| **Antigravity / Claude Code** | End-to-end autonomous agent coordinator; terminal execution, parallel file generation, test verification | System architecture, Docker orchestration, implementation files |
-| **Gemini 3.8 / Claude 3.5 Sonnet** | Concurrency verification, distributed locking design, financial modeling | Zero double-booking proofs, `PLAN.md`, `COST.md` |
+| **Claude Code (Claude 3.5 Sonnet / 3.7 Sonnet)** | Autonomous engineering agent coordinator; terminal execution, parallel module generation, invariant verification harness | System architecture, Docker orchestration, core gateway & worker implementation |
+| **Claude 3.5 Sonnet (Architectural Reasoning)** | Concurrency verification, distributed locking design, financial modeling | Zero double-booking proofs, `PLAN.md`, `COST.md` |
 | **OpenAI `gpt-4o-mini`** | Runtime conversational agent for patient dialogue and tool calling | Live tool-calling test session (`check_slots`, `book_test`, `handoff_to_human`) |
 | **Deterministic Mock LLM Engine** | High-throughput offline testing harness (0 token cost) | 1,000-message load test without consuming production API credits |
 
@@ -62,7 +62,7 @@ At scale (15M+ interactions/month at HeyDoc AI), building with AI requires more 
 ### 4.2 Production Agent Token Optimization (Gateway Architecture)
 To keep the live WhatsApp agent running under the ₹500 budget and model costs at 1M messages/month:
 - **Sliding Dialogue Window**: Bounded message context to the most recent 6 dialogue turns. Older messages remain persisted in PostgreSQL for audit logs but are trimmed from the active LLM context.
-- **Prefix Caching Compatibility**: Structured system prompts with static guidelines and test catalog at the start of the prompt so OpenAI and Gemini prefix caching can reuse key-value states (saving up to 50% on input tokens).
+- **Prefix Caching Compatibility**: Structured system prompts with static guidelines and test catalog at the start of the prompt so OpenAI and Anthropic prompt caching can reuse key-value states (saving up to 50% on input tokens).
 - **Dual-Engine Design (Live vs Mock)**:
   - Provided a zero-cost deterministic tool-calling engine for automated testing and CI.
   - Provided live OpenAI integration for end-to-end verification and interview walkthroughs.
