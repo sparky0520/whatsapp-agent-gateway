@@ -52,3 +52,24 @@ async def test_tool_handoff_to_human():
     # Verify conversation state was updated in DB
     updated_conv = await db.get_conversation_by_wa_id("919876543299")
     assert updated_conv["status"] == "HANDED_OFF"
+
+
+@pytest.mark.asyncio
+async def test_medical_prep_question_escalates_to_human():
+    from app.agent.llm import MockLLMClient
+
+    client = MockLLMClient()
+    # Patient asks a nuanced clinical prep question instead of simple booking
+    messages = [
+        {"role": "user", "content": "Can I drink black coffee before my 12-hour fasting lipid test?"}
+    ]
+    resp = await client.chat(messages=messages, patient_name="Test Patient", patient_phone="919876543299")
+
+    # Invariant: Must call handoff_to_human and NOT answer clinical prep with LLM hallucination
+    assert len(resp.tool_calls) == 1
+    call = resp.tool_calls[0]
+    assert call["function"]["name"] == "handoff_to_human"
+    import json
+    args = json.loads(call["function"]["arguments"])
+    assert args["priority"] == "HIGH"
+

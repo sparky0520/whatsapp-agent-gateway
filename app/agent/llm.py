@@ -77,20 +77,32 @@ class MockLLMClient:
         tool_calls = []
         content = None
 
-        # Pattern 1: Escalation to human
-        if any(w in last_user_msg for w in ["human", "agent", "doctor", "operator", "person", "emergency", "help me"]):
+        # Pattern 1: Escalation to human coordinator
+        # Escalates human requests, emergency symptoms, prep/dietary questions (coffee/tea/medicines), and account updates
+        escalation_keywords = [
+            "human", "agent", "doctor", "operator", "person", "emergency", "help me",
+            "coffee", "tea", "fasting", "eat", "drink", "food", "water",
+            "medicine", "medication", "pill", "prescription",
+            "email", "address", "update", "change", "cancel",
+            "prep", "advice", "symptom", "pain", "chest", "fever"
+        ]
+        if any(w in last_user_msg for w in escalation_keywords):
+            is_emergency = any(w in last_user_msg for w in ["emergency", "chest", "pain", "fever", "severe"])
+            is_prep = any(w in last_user_msg for w in ["coffee", "tea", "fasting", "eat", "drink", "medicine", "medication", "pill"])
+            priority = "URGENT" if is_emergency else ("HIGH" if is_prep else "MEDIUM")
+            
             tool_calls.append({
                 "id": f"call_{uuid.uuid4().hex[:8]}",
                 "type": "function",
                 "function": {
                     "name": "handoff_to_human",
                     "arguments": json.dumps({
-                        "reason": f"Patient requested human coordinator: '{last_user_msg}'",
-                        "priority": "HIGH" if "emergency" in last_user_msg else "MEDIUM"
+                        "reason": f"Patient inquiry requires clinic staff review: '{last_user_msg}'",
+                        "priority": priority
                     })
                 }
             })
-            content = "I am connecting you with a human healthcare coordinator right now."
+            content = f"I am escalating your request to a clinic healthcare coordinator ({priority} priority). A staff member will assist you shortly."
 
         # Pattern 2: Explicit booking request
         elif any(w in last_user_msg for w in ["book", "reserve", "confirm"]):
