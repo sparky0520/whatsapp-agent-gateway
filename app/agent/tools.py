@@ -243,9 +243,13 @@ async def execute_handoff_to_human(
     )
     HUMAN_HANDOFFS_TOTAL.labels(priority=p_upper).inc()
 
+    # Conceal internal technical triage tags (MEDIUM, LOW) from patient-facing messages;
+    # only expose urgency for critical / urgent medical alerts.
+    priority_tag = f" ({p_upper} priority)" if p_upper in ["URGENT", "HIGH"] else ""
+
     return {
         "status": "HANDED_OFF",
         "handoff_id": handoff_record.get("id"),
         "priority": p_upper,
-        "message": f"Conversation escalated to a human healthcare coordinator ({p_upper} priority). An agent will join shortly."
+        "message": f"Conversation escalated to a human healthcare coordinator{priority_tag}. An agent will join shortly."
     }

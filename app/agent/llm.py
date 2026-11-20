@@ -49,12 +49,11 @@ def calculate_cost(prompt_tokens: int, completion_tokens: int) -> Tuple[float, f
 
 class MockLLMClient:
     """
-    Deterministic rule-based agent simulator with tool-calling capabilities.
-    Mimics GPT-4o-mini tool calling decisions based on natural language intent:
-    - User asks for human/help -> calls handoff_to_human
-    - User asks for slots/availability -> calls check_slots
-    - User provides booking details -> calls book_test
-    - Other conversation -> returns friendly contextual message
+    Deterministic offline test double for CI/CD, local testing, and zero-spend load simulation.
+    
+    NOTE: In production (LLM_PROVIDER="deepseek" or "openai"), routing and tool selection
+    are 100% prompt-driven by the LLM using the few-shot system prompt in `app/agent/prompt.py`.
+    This mock class provides a lightweight deterministic simulation without external API calls or token spend.
     """
     async def chat(
         self,
@@ -62,54 +61,43 @@ class MockLLMClient:
         patient_name: str = "Patient",
         patient_phone: str = ""
     ) -> LLMResponse:
-        # Get latest user message
+        # Extract latest user message
         last_user_msg = ""
         for m in reversed(messages):
             if m.get("role") == "user":
-                last_user_msg = (m.get("content") or "").strip().lower()
+                last_user_msg = (m.get("content") or "").strip()
                 break
 
-        # Simulate realistic token usage
+        # Simulate token metrics based on prompt + system prompt length
         prompt_text = "".join([str(m.get("content", "")) for m in messages]) + get_system_prompt()
         prompt_tokens = max(120, len(prompt_text.split()) + 80)
         completion_tokens = 45
 
         tool_calls = []
-        content = None
+        msg_upper = last_user_msg.upper()
 
-        # Pattern 1: Escalation to human coordinator
-        if any(w in last_user_msg for w in ["human", "agent", "doctor", "operator", "person", "emergency", "help me"]):
-            priority = "HIGH" if "emergency" in last_user_msg else "MEDIUM"
+        # Clean deterministic test-stub dispatch
+        if any(token in msg_upper for token in ["EMERGENCY", "DOCTOR", "HUMAN", "HELP"]):
+            priority = "URGENT" if "EMERGENCY" in msg_upper else "HIGH" if "DOCTOR" in msg_upper else "MEDIUM"
             tool_calls.append({
                 "id": f"call_{uuid.uuid4().hex[:8]}",
                 "type": "function",
                 "function": {
                     "name": "handoff_to_human",
                     "arguments": json.dumps({
-                        "reason": f"Patient requested human coordinator: '{last_user_msg}'",
+                        "reason": f"Patient inquiry escalated: '{last_user_msg}'",
                         "priority": priority
                     })
                 }
             })
-            content = "I am connecting you with a human healthcare coordinator right now."
+            content = "I am connecting you with our care coordinator right now."
 
-        # Pattern 2: Explicit booking request
-        elif any(w in last_user_msg for w in ["book", "reserve", "confirm"]):
-            # Detect test code
+        elif any(token in msg_upper for token in ["BOOK", "RESERVE", "CONFIRM"]):
             test_code = "CBC"
             for code in ["LIPID", "FBS", "THYROID", "COVID", "CBC"]:
-                if code.lower() in last_user_msg:
+                if code in msg_upper:
                     test_code = code
                     break
-
-            # Date & Slot detection
-            date = "2026-11-21"
-            slot_time = f"{date}T10:00:00Z"
-            for hour in ["08", "09", "10", "11", "14", "16"]:
-                if f"{hour}:00" in last_user_msg or f"{int(hour)} am" in last_user_msg or f"{int(hour)} pm" in last_user_msg:
-                    slot_time = f"{date}T{hour}:00:00Z"
-                    break
-
             tool_calls.append({
                 "id": f"call_{uuid.uuid4().hex[:8]}",
                 "type": "function",
@@ -119,21 +107,18 @@ class MockLLMClient:
                         "patient_name": patient_name or "Aarav Sharma",
                         "patient_phone": patient_phone or "919876543210",
                         "test_code": test_code,
-                        "slot_time": slot_time
+                        "slot_time": "2026-11-21T10:00:00Z"
                     })
                 }
             })
-            content = f"Booking your {test_code} appointment for {slot_time}..."
+            content = f"Booking your {test_code} appointment for 2026-11-21 10:00 AM..."
 
-        # Pattern 3: Slot / availability inquiry
-        elif any(w in last_user_msg for w in ["slot", "available", "timing", "when", "date", "schedule", "test"]):
+        elif any(token in msg_upper for token in ["SLOT", "AVAIL", "SCHEDULE"]):
             test_code = "CBC"
             for code in ["LIPID", "FBS", "THYROID", "COVID", "CBC"]:
-                if code.lower() in last_user_msg:
+                if code in msg_upper:
                     test_code = code
                     break
-
-            date = "2026-11-21"
             tool_calls.append({
                 "id": f"call_{uuid.uuid4().hex[:8]}",
                 "type": "function",
@@ -141,13 +126,12 @@ class MockLLMClient:
                     "name": "check_slots",
                     "arguments": json.dumps({
                         "test_code": test_code,
-                        "date": date
+                        "date": "2026-11-21"
                     })
                 }
             })
-            content = f"Checking available slots for {test_code} on {date}..."
+            content = f"Checking available slots for {test_code}..."
 
-        # Default conversational reply
         else:
             content = (
                 f"Hello {patient_name}! Welcome to HeyDoc Diagnostics. "

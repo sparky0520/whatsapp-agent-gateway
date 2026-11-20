@@ -39,15 +39,39 @@ async def test_tool_handoff_to_human():
     conv = await db.get_or_create_conversation("919876543299", "Emergency Patient")
     cid = str(conv["id"])
 
-    res = await execute_handoff_to_human(
+    # Urgent escalation includes priority tag
+    res_urgent = await execute_handoff_to_human(
         conversation_id=cid,
         wa_id="919876543299",
         reason="Patient complains of acute chest pain",
         priority="URGENT"
     )
+    assert res_urgent["status"] == "HANDED_OFF"
+    assert res_urgent["priority"] == "URGENT"
+    assert "(URGENT priority)" in res_urgent["message"]
 
-    assert res["status"] == "HANDED_OFF"
-    assert res["priority"] == "URGENT"
+    # Medium and Low priority slice out the internal priority tag from patient message
+    res_medium = await execute_handoff_to_human(
+        conversation_id=cid,
+        wa_id="919876543299",
+        reason="Patient asks about black coffee before fasting",
+        priority="MEDIUM"
+    )
+    assert res_medium["status"] == "HANDED_OFF"
+    assert res_medium["priority"] == "MEDIUM"
+    assert "priority" not in res_medium["message"]
+    assert "escalated to a human healthcare coordinator." in res_medium["message"]
+
+    res_low = await execute_handoff_to_human(
+        conversation_id=cid,
+        wa_id="919876543299",
+        reason="Patient asks for past invoice PDF",
+        priority="LOW"
+    )
+    assert res_low["status"] == "HANDED_OFF"
+    assert res_low["priority"] == "LOW"
+    assert "priority" not in res_low["message"]
+    assert "escalated to a human healthcare coordinator." in res_low["message"]
 
     # Verify conversation state was updated in DB
     updated_conv = await db.get_conversation_by_wa_id("919876543299")
