@@ -1,0 +1,119 @@
+services:
+  # 1. PostgreSQL Relational State Store
+  postgres:
+    image: postgres:16-alpine
+    container_name: heydoc-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: whatsapp_gateway
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d whatsapp_gateway"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Redis Message Broker & Concurrency Lock
+  redis:
+    image: redis:7-alpine
+    container_name: heydoc-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. Flaky Mock Diagnostic Lab API (20% failure simulation & latency)
+  mock-lab:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: heydoc-mock-lab
+    restart: always
+    command: python -m app.mock_lab
+    ports:
+      - "8001:8001"
+    environment:
+      - MOCK_LAB_HOST=0.0.0.0
+      - MOCK_LAB_PORT=8001
+      - LAB_FAILURE_RATE=0.20
+      - LAB_MIN_LATENCY_MS=500
+      - LAB_MAX_LATENCY_MS=1500
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 4. WhatsApp Webhook Ingress Gateway & Observability
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: heydoc-gateway
+    restart: always
+    command: uvicorn app.gateway:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - GATEWAY_HOST=0.0.0.0
+      - GATEWAY_PORT=8000
+      - WHATSAPP_APP_SECRET=${WHATSAPP_APP_SECRET:-mock_secret_for_tests_only_3b9f}
+      - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN:-heydoc_verify_token_2026}
+      - DATABASE_URL=postgresql://postgres:postgrespassword@postgres:5432/whatsapp_gateway
+      - REDIS_URL=redis://redis:6379/0
+      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_MAX_REQUESTS=25
+      - RATE_LIMIT_WINDOW_SECONDS=60
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mock-lab:
+        condition: service_healthy
+
+  # 5. Background Asynchronous Worker (LLM Tool Calling & PostgreSQL State)
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    command: python -m app.worker
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://postgres:postgrespassword@postgres:5432/whatsapp_gateway
+      - REDIS_URL=redis://redis:6379/0
+      - LAB_API_BASE_URL=http://mock-lab:8001
+      - RETRY_MAX_ATTEMPTS=3
+      - RETRY_BASE_BACKOFF=0.3
+      - RETRY_MAX_BACKOFF=2.0
+      - LLM_PROVIDER=${LLM_PROVIDER:-mock}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL_NAME=${OPENAI_MODEL_NAME:-gpt-4o-mini}
+      - COST_PER_1M_PROMPT_TOKENS_USD=0.150
+      - COST_PER_1M_COMPLETION_TOKENS_USD=0.600
+      - USD_TO_INR_RATE=85.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mock-lab:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
