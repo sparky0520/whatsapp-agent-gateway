@@ -81,23 +81,27 @@ Production-grade WhatsApp Agent Gateway engineered for diagnostic laboratory boo
 ```bash
 docker compose up --build
 ```
-This spins up 5 containers:
+This spins up 6 production-ready containers on an isolated bridge network:
 - `heydoc-postgres` (PostgreSQL 16 state store on `:5432`)
 - `heydoc-redis` (Redis 7 broker & cache on `:6379`)
 - `heydoc-mock-lab` (Flaky Lab API on `:8001`)
 - `heydoc-gateway` (FastAPI Ingress & Metrics on `:8000`)
 - `heydoc-worker` (Async LLM Tool Calling Worker)
+- `heydoc-prometheus` (Prometheus Observability Engine on `:9090`)
 
 ### 2. Verify Health & Metrics
 ```bash
 # Check gateway health
 curl http://localhost:8000/health
 
-# View live Prometheus metrics
+# View live Prometheus text metrics
 curl http://localhost:8000/metrics
 
-# View JSON metrics summary
+# View JSON metrics summary (latencies, tokens, costs, handoffs)
 curl http://localhost:8000/metrics/summary
+
+# Open Prometheus Visual Dashboard in browser
+open http://localhost:9090
 ```
 
 ---
