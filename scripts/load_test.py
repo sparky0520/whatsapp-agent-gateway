@@ -199,16 +199,29 @@ async def run_load_test(target_url: str = GATEWAY_URL):
 
     # 4. Wait for background worker processing
     print("\nWaiting for worker queue to finish processing background tasks...")
-    await asyncio.sleep(4.0)
+    summary = {}
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        for _ in range(40):
+            await asyncio.sleep(1.0)
+            try:
+                resp = await client.get(f"{target_url}/metrics/summary")
+                if resp.status_code == 200:
+                    summary = resp.json()
+                    accepted = summary.get("webhook", {}).get("accepted", 0)
+                    processed = summary.get("worker", {}).get("success", 0)
+                    if accepted > 0 and processed >= accepted:
+                        break
+            except Exception:
+                pass
 
-    # 5. Fetch Final Metrics
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{target_url}/metrics/summary")
-            summary = resp.json()
-    except Exception as e:
-        print(f"Warning: Could not fetch /metrics/summary: {e}")
-        return
+    if not summary:
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(f"{target_url}/metrics/summary")
+                summary = resp.json()
+        except Exception as e:
+            print(f"Warning: Could not fetch /metrics/summary: {e}")
+            return
 
     print(f"\n--- End-to-End Execution Report (/metrics summary) ---")
     report_rows = [

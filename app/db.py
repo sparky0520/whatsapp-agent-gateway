@@ -483,6 +483,7 @@ class Database:
             cost_i = sum(c["total_cost_inr"] for c in self.conversations.values())
             confirmed_b = sum(1 for b in self.bookings.values() if b.get("status") == "CONFIRMED")
             handoffs = len(self.human_handoffs)
+            processed_m = sum(len([m for m in self.messages if m.get("role") == "user"]) for _ in [0])
             return {
                 "prompt_tokens": prompt,
                 "completion_tokens": compl,
@@ -490,7 +491,8 @@ class Database:
                 "cost_usd": round(cost_u, 6),
                 "cost_inr": round(cost_i, 4),
                 "confirmed_bookings": confirmed_b,
-                "human_handoffs": handoffs
+                "human_handoffs": handoffs,
+                "processed_jobs": processed_m
             }
 
         async with target.acquire() as conn:
@@ -506,6 +508,7 @@ class Database:
             )
             row_b = await conn.fetchval("SELECT COUNT(*) FROM bookings WHERE status = 'CONFIRMED'")
             row_h = await conn.fetchval("SELECT COUNT(*) FROM human_handoffs")
+            row_p = await conn.fetchval("SELECT COUNT(*) FROM messages WHERE role = 'user'")
             pt = int(row_tokens["prompt_tokens"])
             ct = int(row_tokens["completion_tokens"])
             return {
@@ -515,7 +518,8 @@ class Database:
                 "cost_usd": round(float(row_tokens["cost_usd"]), 6),
                 "cost_inr": round(float(row_tokens["cost_inr"]), 4),
                 "confirmed_bookings": int(row_b or 0),
-                "human_handoffs": int(row_h or 0)
+                "human_handoffs": int(row_h or 0),
+                "processed_jobs": int(row_p or 0)
             }
 
     async def close(self):

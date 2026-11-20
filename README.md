@@ -44,7 +44,7 @@ Production-grade WhatsApp Agent Gateway engineered for diagnostic laboratory boo
          |  - Call LLM (Tool Calling: check_slots, book_test,    |
          |               handoff_to_human)                       |
          |  - Record Token Usage & Estimated Cost in PostgreSQL  |
-         |  - Update Prometheus Metrics                          |
+         |  - Sync Prometheus Metrics (PostgreSQL + Redis)       |
          +-------------+-----------------------------+-----------+
                        |                             |
          4. Tool Calls |                             | 5. DB Persist
@@ -77,7 +77,13 @@ Production-grade WhatsApp Agent Gateway engineered for diagnostic laboratory boo
 ### Prerequisites
 - Docker & Docker Compose installed.
 
-### 1. Launch All Services
+### 1. Configure Environment
+```bash
+cp .env.example .env
+```
+*(By default, `LLM_PROVIDER=mock` is enabled, requiring no external API keys and incurring **₹0.00 actual spend**).*
+
+### 2. Launch All Services
 ```bash
 docker compose up --build
 ```
@@ -89,31 +95,55 @@ This spins up 6 production-ready containers on an isolated bridge network:
 - `heydoc-worker` (Async LLM Tool Calling Worker)
 - `heydoc-prometheus` (Prometheus Observability Engine on `:9090`)
 
-### 2. Verify Health & Metrics
+### 3. Verify Health & Metrics
 ```bash
 # Check gateway health
 curl http://localhost:8000/health
 
-# View live Prometheus text metrics
-curl http://localhost:8000/metrics
+# Check mock lab health
+curl http://localhost:8001/health
 
-# View JSON metrics summary (latencies, tokens, costs, handoffs)
+# View live JSON metrics summary (latencies, tokens, costs, handoffs)
 curl http://localhost:8000/metrics/summary
 
-# Open Prometheus Visual Dashboard in browser
-open http://localhost:9090
+# View Prometheus text exposition
+curl http://localhost:8000/metrics
 ```
+
+---
+
+## 📊 Prometheus Observability Guide
+
+Open **[http://localhost:9090](http://localhost:9090)** in your browser to inspect real-time metrics.
+
+### How Prometheus Works
+Prometheus is a query engine: when you open `http://localhost:9090`, you land on an empty **Expression** query bar. To view a metric:
+1. Type a metric name in the **Expression** input box.
+2. Click the blue **Execute** button.
+3. Switch from the **Table** tab to the **Graph** tab to view the time series curve.
+
+### Essential PromQL Queries
+
+| Query Expression | What It Measures | Why It Matters |
+|---|---|---|
+| `bookings_total` | Confirmed bookings vs. double-bookings prevented | Proves the **Zero Double-Booking Guarantee** under concurrent race conditions. |
+| `llm_cost_total` | Cumulative LLM spend (`currency="INR"` & `currency="USD"`) | Tracks budget compliance against the ₹500 cap. |
+| `llm_tokens_total` | Prompt tokens vs. completion tokens consumed | Monitors token volume and context-window growth. |
+| `whatsapp_webhook_requests_total` | Accepted webhook requests vs. filtered duplicates | Shows Meta burst ingress and duplicate rejection. |
+| `whatsapp_webhook_duration_seconds_bucket` | Webhook acknowledgment latency histogram | Demonstrates compliance with Meta's **sub-200ms** SLA. |
+| `lab_api_retries_total` | Retries triggered against the 20% flaky Lab API | Confirms exponential backoff and jitter resilience. |
 
 ---
 
 ## ⚡ 1,000-Message Load Test
 
-To verify performance under realistic traffic bursts and duplicate retransmissions:
+To stress-test sub-200ms compliance, atomic Redis deduplication, and zero double-booking:
 
 ```bash
 # Run the 1,000-message burst load test (25 concurrent workers, ~15% injected duplicates)
-python scripts/load_test.py http://localhost:8000
+uv run python scripts/load_test.py http://localhost:8000
 ```
+*(Or `python scripts/load_test.py http://localhost:8000` inside your virtual environment).*
 
 ### Actual Benchmark Report
 
@@ -166,17 +196,28 @@ Duplicates: ~150 messages (15% injected)
 
 ---
 
+## 💰 Actual LLM Spend Log
+
+The assignment rules stipulate keeping total spend under ₹500:
+- **Allocated Budget**: ₹500.00 INR
+- **Actual LLM Spend Incurred**: **~₹0.17 INR ($0.002 USD)** (~4,200 tokens across live OpenAI verification turns).
+- **Load Testing**: Handled via the built-in deterministic Mock LLM Engine, enabling high-volume 1,000-message stress tests at **₹0.00 token burn**.
+
+---
+
 ## 💬 Interactive Chat Simulator
 
-You can test real dialogue turns directly in your terminal:
+Test real dialogue turns, tool execution, and booking confirmations in your terminal:
 
 ```bash
-python scripts/simulate_chat.py
+uv run python scripts/simulate_chat.py
 ```
+*(Or `python scripts/simulate_chat.py`).*
+
 **Example interactions:**
-- *"Check available slots for CBC tomorrow"* -> Queries lab, returns available slots.
-- *"Book CBC for Aarav Sharma tomorrow at 10:00 AM"* -> Executes booking with distributed slot lock and database constraint.
-- *"I need to speak to a doctor right away"* -> Calls `handoff_to_human`, marks conversation `HANDED_OFF`, alerts human desk.
+- *"Check available slots for CBC tomorrow"* $\rightarrow$ Queries lab, returns available slots.
+- *"Book CBC for Aarav Sharma tomorrow at 10:00 AM"* $\rightarrow$ Executes booking with distributed slot lock and database constraint.
+- *"I need to speak to a doctor right away"* $\rightarrow$ Calls `handoff_to_human`, marks conversation `HANDED_OFF`, alerts human desk.
 
 ---
 
@@ -205,17 +246,8 @@ pytest tests/ -v
 
 ---
 
-## 💰 Actual LLM Spend Log
-
-The assignment rules stipulate keeping total spend under ₹500:
-- **Allocated Budget**: ₹500.00 INR
-- **Actual LLM Spend Incurred**: **~₹0.17 INR ($0.002 USD)** (~4,200 tokens across live OpenAI verification turns).
-- **Load Testing**: Handled via the built-in deterministic Mock LLM Engine, enabling high-volume 1,000-message stress tests at **₹0.00 token burn**.
-
----
-
 ## 📁 Key Submission Documents
 
-- [PLAN.md](file:///Users/darsh/heydoc%20assignment/PLAN.md) — Initial root commit: architectural plan, API contracts, data model, and concurrency strategy.
-- [COST.md](file:///Users/darsh/heydoc%20assignment/COST.md) — Comprehensive infrastructure and LLM financial model at 1,000,000 messages/month.
-- [AI_USAGE.md](file:///Users/darsh/heydoc%20assignment/AI_USAGE.md) — Autonomous agent workflow, token discipline, and execution system documentation.
+- [PLAN.md](PLAN.md) — Architectural plan, API contracts, data model, and concurrency strategy.
+- [COST.md](COST.md) — Comprehensive infrastructure and LLM financial model at 1,000,000 messages/month.
+- [AI_USAGE.md](AI_USAGE.md) — Autonomous agent workflow, token discipline, and execution system documentation.

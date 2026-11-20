@@ -64,6 +64,7 @@ async def process_job(job_data: str):
                 wamid=job.wamid
             )
             WORKER_JOBS_TOTAL.labels(status="success").inc()
+            await redis_client.incr_metric("worker:jobs_success")
             return
 
         # 2. Log incoming user message
@@ -169,6 +170,7 @@ async def process_job(job_data: str):
         duration = time.time() - start_time
         WORKER_PROCESSING_DURATION_SECONDS.observe(duration)
         WORKER_JOBS_TOTAL.labels(status="success").inc()
+        await redis_client.incr_metric("worker:jobs_success")
         logger.info(
             f"Successfully processed message {job.wamid} for {job.wa_id} in {duration:.3f}s. "
             f"Tokens: {llm_resp.prompt_tokens + llm_resp.completion_tokens}, Cost: ${llm_resp.cost_usd:.6f}"
@@ -178,6 +180,7 @@ async def process_job(job_data: str):
         duration = time.time() - start_time
         WORKER_PROCESSING_DURATION_SECONDS.observe(duration)
         WORKER_JOBS_TOTAL.labels(status="error").inc()
+        await redis_client.incr_metric("worker:jobs_error")
         logger.error(f"Failed to process job ({e})", exc_info=True)
 
 
